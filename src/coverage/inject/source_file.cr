@@ -259,7 +259,7 @@ class Coverage::SourceFile < Crystal::Visitor
   end
 
   def visit(node : Crystal::Expressions)
-    node.expressions = node.expressions.map { |elm| inject_cover(elm) }.flatten
+    node.expressions = node.expressions.flat_map { |elm| inject_cover(elm) }
     true
   end
 

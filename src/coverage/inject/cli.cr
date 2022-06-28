@@ -25,29 +25,32 @@ module Coverage
         end
       end
 
-      filenames = Dir["spec/**/*_spec.cr"] unless filenames.any?
+      filenames = Dir["spec/**/*_spec.cr"] if filenames.empty?
 
       Coverage::SourceFile.outputter = "Coverage::Outputter::#{output_format.camelcase}"
 
-      first = true
-      output = String::Builder.new
-      filenames.each do |f|
-        v = Coverage::SourceFile.new(path: f, source: ::File.read(f))
-        output << v.to_covered_source
-        output << "\n"
-        first = false
+      write_source_io, read_source_io = IO::Stapled.pipe(read_blocking: true)
+
+      spawn do
+        write_source_io << Coverage::SourceFile.prelude_operations
+        filenames.each do |f|
+          v = Coverage::SourceFile.new(path: f, source: ::File.read(f))
+          write_source_io << v.to_covered_source
+          write_source_io << "\n"
+        end
+        write_source_io << Coverage::SourceFile.final_operations
       end
 
-      final_output = [
-        Coverage::SourceFile.prelude_operations,
-        output.to_s,
-        Coverage::SourceFile.final_operations,
-      ].join("")
-
       if print_only
-        puts final_output
+        puts read_source_io.to_s
       else
-        system("crystal", ["eval", final_output])
+        Process.run(
+          "crystal",
+          {"eval"},
+          input: read_source_io,
+          output: :inherit,
+          error: :inherit,
+        ).success?
       end
     end
   end
