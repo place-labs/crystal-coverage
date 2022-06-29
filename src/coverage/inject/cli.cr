@@ -29,25 +29,23 @@ module Coverage
 
       Coverage::SourceFile.outputter = "Coverage::Outputter::#{output_format.camelcase}"
 
-      write_source_io, read_source_io = IO::Stapled.pipe(read_blocking: true)
-
-      spawn do
-        write_source_io << Coverage::SourceFile.prelude_operations
-        filenames.each do |f|
-          v = Coverage::SourceFile.new(path: f, source: ::File.read(f))
-          write_source_io << v.to_covered_source
-          write_source_io << "\n"
-        end
-        write_source_io << Coverage::SourceFile.final_operations
+      source_io = IO::Memory.new
+      source_io << Coverage::SourceFile.prelude_operations
+      filenames.each do |f|
+        v = Coverage::SourceFile.new(path: f, source: ::File.read(f))
+        source_io << v.to_covered_source
+        source_io << "\n"
       end
+      source_io << Coverage::SourceFile.final_operations
+      source_io.rewind
 
       if print_only
-        puts read_source_io.to_s
+        puts source_io.gets_to_end
       else
         Process.run(
           "crystal",
           {"eval"},
-          input: read_source_io,
+          input: source_io,
           output: :inherit,
           error: :inherit,
         ).success?
