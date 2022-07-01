@@ -85,8 +85,7 @@ class Coverage::SourceFile < Crystal::Visitor
       expansion_id = matcher[1].to_i
       file_list = @@require_expanders[expansion_id]
 
-      if file_list.any?
-        io = String::Builder.new
+      String.build do |io|
         file_list.each do |file|
           io << "#" << "require of `" << file.path
           io << "` from `" << self.path << ":#{file.required_at}" << "`" << "\n"
@@ -95,9 +94,6 @@ class Coverage::SourceFile < Crystal::Visitor
           io << inject_location(self.path, file.required_at)
           io << "\n"
         end
-        io.to_s
-      else
-        ""
       end
     end
   end
@@ -107,13 +103,13 @@ class Coverage::SourceFile < Crystal::Visitor
   end
 
   def self.prelude_operations
-    file_maps = @@file_list.map do |f|
-      if f.lines.any?
-        "::Coverage::File.new(\"#{f.path}\", \"#{f.md5_signature}\",[#{f.lines.join(", ")}])"
-      else
+    file_maps = @@file_list.join('\n') do |f|
+      if f.lines.empty?
         "::Coverage::File.new(\"#{f.path}\", \"#{f.md5_signature}\",[] of Int32)"
+      else
+        "::Coverage::File.new(\"#{f.path}\", \"#{f.md5_signature}\",[#{f.lines.join(", ")}])"
       end
-    end.join("\n")
+    end
 
     <<-RAW
     require "#{Coverage::SourceFile.use_require}"

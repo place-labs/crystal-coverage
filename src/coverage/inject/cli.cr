@@ -1,7 +1,5 @@
 require "option_parser"
 
-# require "tempfile"
-
 module Coverage
   module CLI
     def self.run
@@ -30,11 +28,11 @@ module Coverage
       Coverage::SourceFile.outputter = "Coverage::Outputter::#{output_format.camelcase}"
 
       source_io = IO::Memory.new
+
       source_io << Coverage::SourceFile.prelude_operations
       filenames.each do |f|
-        v = Coverage::SourceFile.new(path: f, source: ::File.read(f))
-        source_io << v.to_covered_source
-        source_io << "\n"
+        source_io << Coverage::SourceFile.new(path: f, source: ::File.read(f)).to_covered_source
+        source_io << '\n'
       end
       source_io << Coverage::SourceFile.final_operations
       source_io.rewind
